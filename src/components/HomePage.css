@@ -1,0 +1,88 @@
+.home-section {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.home-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 800px;
+  gap: 2rem;
+}
+
+.home-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  font-size: clamp(32px, 6vw, 72px);
+  line-height: 1.1;
+  color: var(--text-color);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.home-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-size: clamp(18px, 3vw, 28px);
+  line-height: 1.4;
+  color: var(--text-color);
+  margin: 0;
+  opacity: 0.8;
+}
+
+.home-description {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 300;
+  font-size: clamp(16px, 2.5vw, 20px);
+  line-height: 1.6;
+  color: var(--text-color);
+  margin: 0;
+  opacity: 0.7;
+  max-width: 600px;
+}
+
+.home-scroll-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3rem;
+  color: var(--text-color);
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.home-scroll-indicator:hover {
+  opacity: 0.8;
+}
+
+.home-scroll-indicator svg {
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+}
+
+@media (max-width: 768px) {
+  .home-section {
+    padding: 2rem;
+  }
+  
+  .home-content {
+    gap: 1.5rem;
+  }
+  
+  .home-scroll-indicator {
+    margin-top: 2rem;
+  }
+}
