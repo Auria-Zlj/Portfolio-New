@@ -191,7 +191,7 @@ const ProjectCard = ({ project, selectedProject, onProjectClick }: {
 };
 
 const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen: boolean; onCloseNav: () => void; isMainContentVisible: boolean }) => {
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [selectedProject] = useState<string | null>(null);
   const [modalProject, setModalProject] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [progressBarStyle, setProgressBarStyle] = useState<{ top: string; height: string; right: string } | null>(null);
@@ -320,7 +320,7 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
       animationFrameId = requestAnimationFrame(updateLoop);
       
       // Multiple immediate updates to catch initial positioning
-      const timeouts: NodeJS.Timeout[] = [];
+      const timeouts: ReturnType<typeof setTimeout>[] = [];
       timeouts.push(setTimeout(updateProgressBarPosition, 50));
       timeouts.push(setTimeout(updateProgressBarPosition, 100));
       timeouts.push(setTimeout(updateProgressBarPosition, 200));
@@ -399,7 +399,7 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
 
     if (modalProject) {
       // Multiple updates to ensure position is correct after DOM changes
-      const timeouts: NodeJS.Timeout[] = [];
+      const timeouts: ReturnType<typeof setTimeout>[] = [];
       
       // Immediate update
       updateButtonPosition();
@@ -574,7 +574,7 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
 
               {/* Navigation items */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {navigationItems.map((item, index) => (
+                {navigationItems.map((item) => (
                   <motion.button
                     key={item.id}
                     className="compact-nav-item"
@@ -840,7 +840,7 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
             />
           </motion.div>
         )}
-        {projects.slice(1).map((project, index) => (
+        {projects.slice(1).map((project) => (
           <motion.div key={project.id} className="content-section" layout>
             <ProjectCard
               project={project}

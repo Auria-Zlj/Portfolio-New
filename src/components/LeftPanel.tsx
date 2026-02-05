@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import './LeftPanel.css';
 
-const LeftPanel = ({ onAvatarClick, isNavOpen }: { onAvatarClick: () => void; isNavOpen?: boolean }) => {
+const LeftPanel = (_props: { onAvatarClick: () => void; isNavOpen?: boolean }) => {
   return (
     <motion.div
       className="left-panel"
