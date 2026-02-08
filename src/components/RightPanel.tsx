@@ -5,70 +5,6 @@ import gsap from 'gsap';
 import { GlassSurface } from './GlassSurface';
 import './RightPanel.css';
 
-// Global scroll handler component
-const GlobalScrollHandler = ({ rightPanelRef, modalProject }: { rightPanelRef: React.RefObject<HTMLDivElement>; modalProject: string | null }) => {
-  useEffect(() => {
-    if (!rightPanelRef.current) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      // Only handle vertical scrolling
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      
-      // If modal is open, completely disable all scroll handling
-      // This prevents any scroll events from affecting the background
-      if (modalProject) {
-        return;
-      }
-      
-      const rightPanel = rightPanelRef.current;
-      if (!rightPanel) return;
-      
-      // Check if mouse is over right panel
-      const rect = rightPanel.getBoundingClientRect();
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
-      const isOverRightPanel = mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom;
-      
-      const currentScroll = rightPanel.scrollTop;
-      const maxScroll = rightPanel.scrollHeight - rightPanel.clientHeight;
-      
-      // If scrolling up and at top, scroll window back to home (only when modal is closed)
-      if (e.deltaY < 0 && currentScroll <= 0 && !modalProject) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
-        return;
-      }
-      
-      // If mouse is over right panel, let it scroll naturally
-      if (isOverRightPanel) {
-        return;
-      }
-      
-      // Mouse is not over right panel, control it from anywhere else
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const scrollDelta = e.deltaY * 2.5;
-      const newScroll = Math.max(0, Math.min(maxScroll, currentScroll + scrollDelta));
-      rightPanel.scrollTop = newScroll;
-    };
-
-    // Only add listener when modal is closed
-    if (!modalProject) {
-      document.addEventListener('wheel', handleWheel, { passive: false });
-    }
-    
-    return () => {
-      document.removeEventListener('wheel', handleWheel);
-    };
-  }, [rightPanelRef, modalProject]);
-
-  return null;
-};
 
 // Project card component with spotlight effect
 const ProjectCard = ({ project, selectedProject, onProjectClick }: {
@@ -82,11 +18,11 @@ const ProjectCard = ({ project, selectedProject, onProjectClick }: {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
-    
+
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     mouseX.set(x);
     mouseY.set(y);
   };
@@ -190,7 +126,7 @@ const ProjectCard = ({ project, selectedProject, onProjectClick }: {
   );
 };
 
-const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen: boolean; onCloseNav: () => void; isMainContentVisible: boolean }) => {
+const RightPanel = ({ isNavOpen, onCloseNav }: { isNavOpen: boolean; onCloseNav: () => void }) => {
   const [selectedProject] = useState<string | null>(null);
   const [modalProject, setModalProject] = useState<string | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -202,6 +138,36 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
   const modalContentRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
+
+  // Prevent scroll chaining to parent (Home page) when at the top of RightPanel
+  useEffect(() => {
+    const element = rightPanelRef.current;
+    if (!element) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only block if we are fully in the main content area (passed the home page)
+      // Allow a small buffer (e.g., -10px) for browser inconsistencies
+      const isMainContentActive = window.scrollY >= window.innerHeight - 10;
+
+      // If we're not fully in the main content (e.g. transitioning), let the default scroll happen
+      // This is crucial for CSS Scroll Snap to work correctly when moving between sections
+      if (!isMainContentActive) return;
+
+      // If we are at the top (or negative due to bounce) and trying to scroll up
+      if (element.scrollTop <= 0 && e.deltaY < 0) {
+        // Prevent default browser behavior (scrolling parent window)
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    // Add non-passive listener to allow preventing default
+    element.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      element.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   // Save and restore right panel scroll position when modal opens/closes
   useEffect(() => {
@@ -227,12 +193,12 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
         // Elastic slide-in from left with scale
         gsap.fromTo(
           navRef.current,
-          { 
+          {
             x: -100,
             opacity: 0,
             scale: 0.9
           },
-          { 
+          {
             x: 0,
             opacity: 1,
             scale: 1,
@@ -245,9 +211,9 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
         gsap.fromTo(
           navRef.current.querySelectorAll('.compact-nav-item'),
           { x: -30, opacity: 0 },
-          { 
-            x: 0, 
-            opacity: 1, 
+          {
+            x: 0,
+            opacity: 1,
             duration: 0.4,
             stagger: 0.08,
             delay: 0.2,
@@ -256,7 +222,7 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
         );
       } else if (navRef.current) {
         // Slide out to left with scale when closing
-        gsap.to(navRef.current, { 
+        gsap.to(navRef.current, {
           x: -100,
           opacity: 0,
           scale: 0.9,
@@ -295,62 +261,41 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
 
   // Update progress bar position and height to match modal container
   useEffect(() => {
+    if (!modalProject || !modalRef.current) {
+      setProgressBarStyle(null);
+      return;
+    }
+
     const updateProgressBarPosition = () => {
-      if (modalRef.current && modalProject) {
+      if (modalRef.current) {
         const modalRect = modalRef.current.getBoundingClientRect();
         setProgressBarStyle({
           top: `${modalRect.top}px`,
           height: `${modalRect.height}px`,
           right: `${window.innerWidth - modalRect.right - 12}px`,
         });
-      } else {
-        setProgressBarStyle(null);
       }
     };
 
-    if (modalProject) {
-      // Use requestAnimationFrame for smooth updates during animations
-      let animationFrameId: number;
-      const updateLoop = () => {
-        updateProgressBarPosition();
-        animationFrameId = requestAnimationFrame(updateLoop);
-      };
-      
-      // Start the update loop
-      animationFrameId = requestAnimationFrame(updateLoop);
-      
-      // Multiple immediate updates to catch initial positioning
-      const timeouts: ReturnType<typeof setTimeout>[] = [];
-      timeouts.push(setTimeout(updateProgressBarPosition, 50));
-      timeouts.push(setTimeout(updateProgressBarPosition, 100));
-      timeouts.push(setTimeout(updateProgressBarPosition, 200));
-      timeouts.push(setTimeout(updateProgressBarPosition, 400));
-      
-      window.addEventListener('resize', updateProgressBarPosition);
-      window.addEventListener('scroll', updateProgressBarPosition);
-      
-      // Use ResizeObserver to watch for size changes
-      let resizeObserver: ResizeObserver | null = null;
-      if (modalRef.current) {
-        resizeObserver = new ResizeObserver(() => {
-          updateProgressBarPosition();
-        });
-        resizeObserver.observe(modalRef.current);
-      }
-      
-      return () => {
-        cancelAnimationFrame(animationFrameId);
-        timeouts.forEach(timeout => clearTimeout(timeout));
-        window.removeEventListener('resize', updateProgressBarPosition);
-        window.removeEventListener('scroll', updateProgressBarPosition);
-        if (resizeObserver) {
-          resizeObserver.disconnect();
-        }
-        setProgressBarStyle(null);
-      };
-    } else {
-      setProgressBarStyle(null);
-    }
+    // Initial update
+    updateProgressBarPosition();
+
+    // Updates on resize and scroll
+    window.addEventListener('resize', updateProgressBarPosition);
+    // We might not need scroll listener if position is fixed/sticky, but if it depends on viewport...
+    // valid to keep if needed, but throttle it if possible. 
+    // Actually, if modal is fixed/absolute, scroll might not change rect relative to viewport if it's 100vh.
+    // But let's keep it simple for now, just removing the heavy loop.
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateProgressBarPosition();
+    });
+    resizeObserver.observe(modalRef.current);
+
+    return () => {
+      window.removeEventListener('resize', updateProgressBarPosition);
+      resizeObserver.disconnect();
+    };
   }, [modalProject]);
 
   // Track scroll progress for progress bar
@@ -375,107 +320,53 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
 
   // Update close button position based on modal and image position
   useEffect(() => {
+    if (!modalProject) return;
+
     const updateButtonPosition = () => {
-      if (modalRef.current && closeButtonRef.current) {
-        const button = closeButtonRef.current;
-        
-        // Find the image element inside modal
-        const imageElement = modalRef.current.querySelector('.modal-card-xheal-image') as HTMLImageElement;
-        
-        if (imageElement) {
-          const imageRect = imageElement.getBoundingClientRect();
-          // Position button near the right edge of the image, aligned with top
-          // 24px offset from top and right edge
-          button.style.top = `${imageRect.top + 24}px`;
-          button.style.right = `${window.innerWidth - imageRect.right + 24}px`;
-        } else {
-          // Fallback to modal position if image not found
-          const modalRect = modalRef.current.getBoundingClientRect();
-          button.style.top = `${modalRect.top + 24}px`;
-          button.style.right = `${window.innerWidth - modalRect.right + 24}px`;
-        }
+      if (!modalRef.current || !closeButtonRef.current) return;
+
+      const button = closeButtonRef.current;
+      // Find the image element inside modal
+      const imageElement = modalRef.current.querySelector('.modal-card-xheal-image') as HTMLImageElement;
+
+      if (imageElement) {
+        const imageRect = imageElement.getBoundingClientRect();
+        button.style.top = `${imageRect.top + 24}px`;
+        button.style.right = `${window.innerWidth - imageRect.right + 24}px`;
+      } else {
+        const modalRect = modalRef.current.getBoundingClientRect();
+        button.style.top = `${modalRect.top + 24}px`;
+        button.style.right = `${window.innerWidth - modalRect.right + 24}px`;
       }
     };
 
-    if (modalProject) {
-      // Multiple updates to ensure position is correct after DOM changes
-      const timeouts: ReturnType<typeof setTimeout>[] = [];
-      
-      // Immediate update
-      updateButtonPosition();
-      
-      // Updates with delays to catch DOM changes
-      timeouts.push(setTimeout(updateButtonPosition, 50));
-      timeouts.push(setTimeout(updateButtonPosition, 100));
-      timeouts.push(setTimeout(updateButtonPosition, 200));
-      timeouts.push(setTimeout(updateButtonPosition, 300));
-      
-      // Wait for image to load, then update position
-      const imageElement = modalRef.current?.querySelector('.modal-card-xheal-image') as HTMLImageElement;
-      
-      if (imageElement) {
-        if (imageElement.complete) {
-          // Image already loaded
-          updateButtonPosition();
-        } else {
-          // Wait for image to load
-          imageElement.addEventListener('load', updateButtonPosition, { once: true });
-        }
-      }
-      
-      window.addEventListener('resize', updateButtonPosition);
-      window.addEventListener('scroll', updateButtonPosition);
-      
-      // Use MutationObserver to watch for image position changes
-      const observer = new MutationObserver(() => {
-        // Debounce the update
-        setTimeout(updateButtonPosition, 10);
-      });
-      
-      if (modalRef.current) {
-        observer.observe(modalRef.current, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['style', 'class'],
-          characterData: false
-        });
-      }
-      
-      // Use ResizeObserver to watch for size changes
-      let resizeObserver: ResizeObserver | null = null;
-      if (modalRef.current) {
-        resizeObserver = new ResizeObserver(() => {
-          updateButtonPosition();
-        });
-        resizeObserver.observe(modalRef.current);
-      }
-      
-      return () => {
-        timeouts.forEach(timeout => clearTimeout(timeout));
-        window.removeEventListener('resize', updateButtonPosition);
-        window.removeEventListener('scroll', updateButtonPosition);
-        observer.disconnect();
-        if (resizeObserver) {
-          resizeObserver.disconnect();
-        }
-        if (imageElement) {
-          imageElement.removeEventListener('load', updateButtonPosition);
-        }
-      };
+    updateButtonPosition();
+
+    // Watch for image load
+    const imageElement = modalRef.current?.querySelector('.modal-card-xheal-image') as HTMLImageElement;
+    if (imageElement && !imageElement.complete) {
+      imageElement.addEventListener('load', updateButtonPosition, { once: true });
     }
+
+    window.addEventListener('resize', updateButtonPosition);
+
+    const observer = new ResizeObserver(() => {
+      updateButtonPosition();
+    });
+
+    if (modalRef.current) {
+      observer.observe(modalRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateButtonPosition);
+      observer.disconnect();
+    };
   }, [modalProject]);
 
 
   return (
     <>
-      {/* Global scroll handler when in main content */}
-      {isMainContentVisible && (
-        <GlobalScrollHandler 
-          rightPanelRef={rightPanelRef}
-          modalProject={modalProject}
-        />
-      )}
       <motion.div
         ref={rightPanelRef}
         className="right-panel"
@@ -486,629 +377,626 @@ const RightPanel = ({ isNavOpen, onCloseNav, isMainContentVisible }: { isNavOpen
           damping: 30,
         }}
       >
-      <motion.div className="right-content" layout>
-        {/* Liquid Glass Nav Bar at top */}
-        <div className="top-nav-bar">
-          <GlassSurface 
-            className="nav-bar-content"
-            blur={10}
-            opacity={0.305}
-            borderRadius={20}
-            style={{
-              background: 'rgba(112, 111, 111, 0.5)',
-              border: '1.5px solid rgba(125, 125, 125, 0.67)',
-              WebkitBackdropFilter: 'blur(15px) saturate(150%)',
-              backdropFilter: 'blur(10px) saturate(180%)',
-            }}
-          >
-            <div className="nav-bar-left">
-              <div className="nav-avatar-name">
-                <div className="nav-avatar">
-                  <img 
-                    src="/images/head.png" 
-                    alt="Auria Zhang" 
-                  />
-                </div>
-                <span className="nav-name">Auria Zhang</span>
-              </div>
-            </div>
-            <div className="nav-bar-right">
-              <span className="nav-about">About Me</span>
-            </div>
-          </GlassSurface>
-        </div>
-        
-        {/* Oval Navigation Bar with integrated avatar */}
-        <AnimatePresence mode="wait">
-          {isNavOpen && (
-            <motion.div
-              ref={navRef}
-              initial={{ opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+        <motion.div className="right-content" layout>
+          {/* Liquid Glass Nav Bar at top */}
+          <div className="top-nav-bar">
+            <GlassSurface
+              className="nav-bar-content"
+              blur={10}
+              opacity={0.305}
+              borderRadius={20}
               style={{
-                position: 'fixed',
-                bottom: '2.5rem',
-                left: '2.5rem',
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                borderRadius: '60px',
-                padding: '0.5rem',
-                paddingLeft: '0.5rem',
-                paddingRight: '1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                zIndex: 100,
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                willChange: 'transform, opacity'
+                background: 'rgba(112, 111, 111, 0.5)',
+                border: '1.5px solid rgba(125, 125, 125, 0.67)',
+                WebkitBackdropFilter: 'blur(15px) saturate(150%)',
+                backdropFilter: 'blur(10px) saturate(180%)',
               }}
             >
-              {/* Avatar circle integrated in the nav bar */}
-              <div
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  backgroundColor: '#FFFFFF',
-                  flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  cursor: 'pointer'
-                }}
-                onClick={onCloseNav}
-              >
-                <img 
-                  src="/images/head.png" 
-                  alt="Auria Zhang" 
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'center 20%'
-                  }}
-                />
+              <div className="nav-bar-left">
+                <div className="nav-avatar-name">
+                  <div className="nav-avatar">
+                    <img
+                      src="/images/head.png"
+                      alt="Auria Zhang"
+                    />
+                  </div>
+                  <span className="nav-name">Auria Zhang</span>
+                </div>
               </div>
+              <div className="nav-bar-right">
+                <span className="nav-about">About Me</span>
+              </div>
+            </GlassSurface>
+          </div>
 
-              {/* Navigation items */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {navigationItems.map((item) => (
-                  <motion.button
-                    key={item.id}
-                    className="compact-nav-item"
-                    onClick={() => handleNavItemClick(item.id)}
-                    whileHover={{ 
-                      scale: 1.05,
-                      backgroundColor: 'rgba(0, 0, 0, 0.08)'
-                    }}
-                    whileTap={{ scale: 0.95 }}
-                    style={{
-                      padding: '0.75rem 1.25rem',
-                      borderRadius: '24px',
-                      border: 'none',
-                      backgroundColor: 'rgba(0, 0, 0, 0.03)',
-                      cursor: 'pointer',
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '15px',
-                      fontWeight: 500,
-                      color: 'var(--text-color)',
-                      transition: 'all 0.2s ease',
-                      whiteSpace: 'nowrap',
-                      opacity: 0
-                    }}
-                  >
-                    {item.label}
-                  </motion.button>
-                ))}
-              </div>
-              
-              {/* Close button */}
-              <motion.button
-                onClick={onCloseNav}
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
+          {/* Oval Navigation Bar with integrated avatar */}
+          <AnimatePresence mode="wait">
+            {isNavOpen && (
+              <motion.div
+                ref={navRef}
+                initial={{ opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                  cursor: 'pointer',
+                  position: 'fixed',
+                  bottom: '2.5rem',
+                  left: '2.5rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderRadius: '60px',
+                  padding: '0.5rem',
+                  paddingLeft: '0.5rem',
+                  paddingRight: '1.5rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-color)',
-                  flexShrink: 0
+                  gap: '1rem',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                  zIndex: 100,
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  willChange: 'transform, opacity'
                 }}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
+                {/* Avatar circle integrated in the nav bar */}
+                <div
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    backgroundColor: '#FFFFFF',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    cursor: 'pointer'
+                  }}
+                  onClick={onCloseNav}
                 >
-                  <path
-                    d="M18 6L6 18M6 6L18 18"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <img
+                    src="/images/head.png"
+                    alt="Auria Zhang"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center 20%'
+                    }}
                   />
-                </svg>
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </div>
 
-        {showPlayground ? (
-          <motion.div className="content-section playground-section" layout>
-            <h2>Arrow Style Playground</h2>
-            <div className="playground-grid">
-              {/* Style 1: Double Arrow */}
-              <div className="playground-item">
-                <p>Style 1: Double Arrow</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 13L12 18L17 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M7 8L12 13L17 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
-                  </svg>
-                </motion.div>
-              </div>
+                {/* Navigation items */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {navigationItems.map((item) => (
+                    <motion.button
+                      key={item.id}
+                      className="compact-nav-item"
+                      onClick={() => handleNavItemClick(item.id)}
+                      whileHover={{
+                        scale: 1.05,
+                        backgroundColor: 'rgba(0, 0, 0, 0.08)'
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: '24px',
+                        border: 'none',
+                        backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: '15px',
+                        fontWeight: 500,
+                        color: 'var(--text-color)',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap',
+                        opacity: 0
+                      }}
+                    >
+                      {item.label}
+                    </motion.button>
+                  ))}
+                </div>
 
-              {/* Style 2: Single Arrow with Circle */}
-              <div className="playground-item">
-                <p>Style 2: Single Arrow with Circle</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" opacity="0.3" fill="none"/>
-                    <path d="M8 10L12 14L16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 3: Chevron Down */}
-              <div className="playground-item">
-                <p>Style 3: Chevron Down</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 4: Arrow with Dots */}
-              <div className="playground-item">
-                <p>Style 4: Arrow with Dots</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="6" r="1.5" fill="currentColor" opacity="0.6"/>
-                    <circle cx="12" cy="10" r="1.5" fill="currentColor" opacity="0.8"/>
-                    <path d="M8 14L12 18L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 5: Minimal Arrow */}
-              <div className="playground-item">
-                <p>Style 5: Minimal Arrow</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 6: Bouncing Arrow */}
-              <div className="playground-item">
-                <p>Style 6: Bouncing Arrow</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ 
-                    y: [0, 12, 0],
-                    scale: [1, 1.1, 1]
+                {/* Close button */}
+                <motion.button
+                  onClick={onCloseNav}
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-color)',
+                    flexShrink: 0
                   }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 7: Arrow with Line */}
-              <div className="playground-item">
-                <p>Style 7: Arrow with Line</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <line x1="12" y1="4" x2="12" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    <path d="M8 12L12 16L16 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 8: Filled Arrow */}
-              <div className="playground-item">
-                <p>Style 8: Filled Arrow</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" opacity="0.2"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 9: Triple Arrow */}
-              <div className="playground-item">
-                <p>Style 9: Triple Arrow</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 15L12 20L17 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/>
-                    <path d="M7 5L12 10L17 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.4"/>
-                  </svg>
-                </motion.div>
-              </div>
-
-              {/* Style 10: Arrow with Pulse */}
-              <div className="playground-item">
-                <p>Style 10: Arrow with Pulse</p>
-                <motion.div 
-                  className="scroll-indicator"
-                  animate={{ 
-                    y: [0, 10, 0],
-                    scale: [1, 1.05, 1]
-                  }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <circle 
-                      cx="12" 
-                      cy="12" 
-                      r="10" 
-                      stroke="currentColor" 
-                      strokeWidth="1" 
-                      fill="none"
-                      opacity="0.2"
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M18 6L6 18M6 6L18 18"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
-                    <path d="M8 10L12 14L16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                </motion.div>
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowPlayground(false)}
-              style={{
-                marginTop: '2rem',
-                padding: '0.75rem 2rem',
-                background: 'transparent',
-                border: '2px solid #000',
-                borderRadius: '50px',
-                cursor: 'pointer',
-                fontFamily: 'Inter, sans-serif',
-                fontSize: '14px',
-                fontWeight: 500
-              }}
-            >
-              Close Playground
-            </button>
-          </motion.div>
-        ) : (
-          <motion.div className="content-section" layout>
-            <ProjectCard
-              project={projects[0]}
-              selectedProject={selectedProject}
-              onProjectClick={(id) => {
-                if (rightPanelRef.current) {
-                  setRightPanelScrollBeforeModal(rightPanelRef.current.scrollTop);
-                }
-                setModalProject(id);
-              }}
-            />
-          </motion.div>
-        )}
-        {projects.slice(1).map((project) => (
-          <motion.div key={project.id} className="content-section" layout>
-            <ProjectCard
-              project={project}
-              selectedProject={selectedProject}
-              onProjectClick={(id) => {
-                if (rightPanelRef.current) {
-                  setRightPanelScrollBeforeModal(rightPanelRef.current.scrollTop);
-                }
-                setModalProject(id);
-              }}
-            />
-          </motion.div>
-        ))}
-      </motion.div>
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* Modal */}
-      {createPortal(
-        <AnimatePresence>
-          {modalProject && (
-            <>
-              {/* Backdrop with blur */}
-              <motion.div
-                className="modal-backdrop"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 0.4,
-                  ease: [0.16, 1, 0.3, 1],
+          {showPlayground ? (
+            <motion.div className="content-section playground-section" layout>
+              <h2>Arrow Style Playground</h2>
+              <div className="playground-grid">
+                {/* Style 1: Double Arrow */}
+                <div className="playground-item">
+                  <p>Style 1: Double Arrow</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M7 13L12 18L17 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 8L12 13L17 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 2: Single Arrow with Circle */}
+                <div className="playground-item">
+                  <p>Style 2: Single Arrow with Circle</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" opacity="0.3" fill="none" />
+                      <path d="M8 10L12 14L16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 3: Chevron Down */}
+                <div className="playground-item">
+                  <p>Style 3: Chevron Down</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 4: Arrow with Dots */}
+                <div className="playground-item">
+                  <p>Style 4: Arrow with Dots</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="6" r="1.5" fill="currentColor" opacity="0.6" />
+                      <circle cx="12" cy="10" r="1.5" fill="currentColor" opacity="0.8" />
+                      <path d="M8 14L12 18L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 5: Minimal Arrow */}
+                <div className="playground-item">
+                  <p>Style 5: Minimal Arrow</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 6: Bouncing Arrow */}
+                <div className="playground-item">
+                  <p>Style 6: Bouncing Arrow</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{
+                      y: [0, 12, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 7: Arrow with Line */}
+                <div className="playground-item">
+                  <p>Style 7: Arrow with Line</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <line x1="12" y1="4" x2="12" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M8 12L12 16L16 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 8: Filled Arrow */}
+                <div className="playground-item">
+                  <p>Style 8: Filled Arrow</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" opacity="0.2" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 9: Triple Arrow */}
+                <div className="playground-item">
+                  <p>Style 9: Triple Arrow</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M7 15L12 20L17 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+                      <path d="M7 5L12 10L17 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.4" />
+                    </svg>
+                  </motion.div>
+                </div>
+
+                {/* Style 10: Arrow with Pulse */}
+                <div className="playground-item">
+                  <p>Style 10: Arrow with Pulse</p>
+                  <motion.div
+                    className="scroll-indicator"
+                    animate={{
+                      y: [0, 10, 0],
+                      scale: [1, 1.05, 1]
+                    }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        fill="none"
+                        opacity="0.2"
+                      />
+                      <path d="M8 10L12 14L16 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPlayground(false)}
+                style={{
+                  marginTop: '2rem',
+                  padding: '0.75rem 2rem',
+                  background: 'transparent',
+                  border: '2px solid #000',
+                  borderRadius: '50px',
+                  cursor: 'pointer',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 500
                 }}
-                onClick={() => {
-                  setModalProject(null);
-                  // Restore scroll position after a brief delay to ensure modal is closed
-                  setTimeout(() => {
-                    if (rightPanelRef.current && rightPanelScrollBeforeModal > 0) {
-                      rightPanelRef.current.scrollTop = rightPanelScrollBeforeModal;
-                    }
-                  }, 100);
+              >
+                Close Playground
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div className="content-section" layout>
+              <ProjectCard
+                project={projects[0]}
+                selectedProject={selectedProject}
+                onProjectClick={(id) => {
+                  if (rightPanelRef.current) {
+                    setRightPanelScrollBeforeModal(rightPanelRef.current.scrollTop);
+                  }
+                  setModalProject(id);
                 }}
               />
-              
-              {/* Close button - positioned outside modal to avoid covering content */}
-              <motion.button
-                ref={closeButtonRef}
-                className={`modal-close-button ${
-                  modalProject === 'x-heal' ? 'modal-close-button-xheal' : 
-                  modalProject === 'mushroommate' ? 'modal-close-button-mushroommate' : ''
-                }`}
-                onClick={() => {
-                  setModalProject(null);
-                  // Restore scroll position after a brief delay to ensure modal is closed
-                  setTimeout(() => {
-                    if (rightPanelRef.current && rightPanelScrollBeforeModal > 0) {
-                      rightPanelRef.current.scrollTop = rightPanelScrollBeforeModal;
-                    }
-                  }, 100);
+            </motion.div>
+          )}
+          {projects.slice(1).map((project) => (
+            <motion.div key={project.id} className="content-section" layout>
+              <ProjectCard
+                project={project}
+                selectedProject={selectedProject}
+                onProjectClick={(id) => {
+                  if (rightPanelRef.current) {
+                    setRightPanelScrollBeforeModal(rightPanelRef.current.scrollTop);
+                  }
+                  setModalProject(id);
                 }}
-                aria-label="Close modal"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{
-                  type: "spring",
-                  bounce: 0.5,
-                  duration: 0.5,
-                }}
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M18 6L6 18M6 6L18 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </motion.button>
-              
-              {/* Scroll progress bar - positioned outside modal */}
-              {progressBarStyle && (
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Modal */}
+        {createPortal(
+          <AnimatePresence>
+            {modalProject && (
+              <>
+                {/* Backdrop with blur */}
                 <motion.div
-                  className={`modal-scroll-progress ${
-                    modalProject === 'x-heal' ? 'modal-scroll-progress-xheal' : 
-                    modalProject === 'mushroommate' ? 'modal-scroll-progress-mushroommate' : ''
-                  }`}
-                  initial={{ scaleY: 0, opacity: 0 }}
-                  animate={{ scaleY: 1, opacity: 1 }}
-                  exit={{ scaleY: 0, opacity: 0 }}
+                  className="modal-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  onClick={() => {
+                    setModalProject(null);
+                    // Restore scroll position after a brief delay to ensure modal is closed
+                    setTimeout(() => {
+                      if (rightPanelRef.current && rightPanelScrollBeforeModal > 0) {
+                        rightPanelRef.current.scrollTop = rightPanelScrollBeforeModal;
+                      }
+                    }, 100);
+                  }}
+                />
+
+                {/* Close button - positioned outside modal to avoid covering content */}
+                <motion.button
+                  ref={closeButtonRef}
+                  className={`modal-close-button ${modalProject === 'x-heal' ? 'modal-close-button-xheal' :
+                    modalProject === 'mushroommate' ? 'modal-close-button-mushroommate' : ''
+                    }`}
+                  onClick={() => {
+                    setModalProject(null);
+                    // Restore scroll position after a brief delay to ensure modal is closed
+                    setTimeout(() => {
+                      if (rightPanelRef.current && rightPanelScrollBeforeModal > 0) {
+                        rightPanelRef.current.scrollTop = rightPanelScrollBeforeModal;
+                      }
+                    }, 100);
+                  }}
+                  aria-label="Close modal"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{
+                    type: "spring",
+                    bounce: 0.5,
+                    duration: 0.5,
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M18 6L6 18M6 6L18 18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </motion.button>
+
+                {/* Scroll progress bar - positioned outside modal */}
+                {progressBarStyle && (
+                  <motion.div
+                    className={`modal-scroll-progress ${modalProject === 'x-heal' ? 'modal-scroll-progress-xheal' :
+                      modalProject === 'mushroommate' ? 'modal-scroll-progress-mushroommate' : ''
+                      }`}
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: 1, opacity: 1 }}
+                    exit={{ scaleY: 0, opacity: 0 }}
+                    transition={{
+                      type: "spring",
+                      bounce: 0.25,
+                      duration: 0.5,
+                      opacity: { duration: 0.3 },
+                    }}
+                    style={progressBarStyle}
+                  >
+                    <motion.div
+                      className={`modal-scroll-progress-bar ${modalProject === 'x-heal' ? 'modal-scroll-progress-bar-xheal' :
+                        modalProject === 'mushroommate' ? 'modal-scroll-progress-bar-mushroommate' : ''
+                        }`}
+                      animate={{
+                        scaleY: scrollProgress,
+                      }}
+                      style={{
+                        transformOrigin: 'top',
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 35,
+                        mass: 0.8,
+                      }}
+                    />
+                  </motion.div>
+                )}
+
+                {/* Modal content */}
+                <motion.div
+                  ref={modalRef}
+                  className={`modal-container ${modalProject === 'x-heal' ? 'modal-container-xheal' : ''}`}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.85,
+                    x: "-50%",
+                    y: "-48%",
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                    x: "-50%",
+                    y: "-50%",
+                  }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.9,
+                    x: "-50%",
+                    y: "-48%",
+                  }}
                   transition={{
                     type: "spring",
                     bounce: 0.25,
-                    duration: 0.5,
+                    duration: 0.6,
                     opacity: { duration: 0.3 },
                   }}
-                  style={progressBarStyle}
+                  style={{
+                    position: "fixed",
+                    top: "50%",
+                    left: "50%",
+                  }}
                 >
-                  <motion.div
-                    className={`modal-scroll-progress-bar ${
-                      modalProject === 'x-heal' ? 'modal-scroll-progress-bar-xheal' : 
-                      modalProject === 'mushroommate' ? 'modal-scroll-progress-bar-mushroommate' : ''
-                    }`}
-                    animate={{
-                      scaleY: scrollProgress,
-                    }}
-                    style={{
-                      transformOrigin: 'top',
-                    }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 35,
-                      mass: 0.8,
-                    }}
-                  />
-                </motion.div>
-              )}
-              
-              {/* Modal content */}
-              <motion.div
-                ref={modalRef}
-                className={`modal-container ${modalProject === 'x-heal' ? 'modal-container-xheal' : ''}`}
-                initial={{ 
-                  opacity: 0, 
-                  scale: 0.85, 
-                  x: "-50%", 
-                  y: "-48%",
-                }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1, 
-                  x: "-50%", 
-                  y: "-50%",
-                }}
-                exit={{ 
-                  opacity: 0, 
-                  scale: 0.9, 
-                  x: "-50%", 
-                  y: "-48%",
-                }}
-                transition={{
-                  type: "spring",
-                  bounce: 0.25,
-                  duration: 0.6,
-                  opacity: { duration: 0.3 },
-                }}
-                style={{
-                  position: "fixed",
-                  top: "50%",
-                  left: "50%",
-                }}
-              >
-                {(() => {
-                  const project = projects.find(p => p.id === modalProject);
-                  if (!project) return null;
-                  
-                  return (
-                    <>
-                      {/* Modal content */}
-                      <div className="modal-content" ref={modalContentRef}>
-                        {project.id === 'x-heal' ? (
-                          <div className="modal-card modal-card-xheal">
-                            <div className="modal-card-xheal-image-wrapper">
-                              <img
-                                src="/images/X1.png"
-                                alt={project.name}
-                                className="modal-card-xheal-image"
-                                decoding="async"
-                              />
-                            </div>
+                  {(() => {
+                    const project = projects.find(p => p.id === modalProject);
+                    if (!project) return null;
+
+                    return (
+                      <>
+                        {/* Modal content */}
+                        <div className="modal-content" ref={modalContentRef}>
+                          {project.id === 'x-heal' ? (
+                            <div className="modal-card modal-card-xheal">
+                              <div className="modal-card-xheal-image-wrapper">
+                                <img
+                                  src="/images/X1.png"
+                                  alt={project.name}
+                                  className="modal-card-xheal-image"
+                                  decoding="async"
+                                />
+                              </div>
                               <div className="modal-card-xheal-text">
                                 <div className="modal-card-xheal-header">
                                   <h1 className="modal-card-xheal-title">
                                     X-Heal | ACL Rehab System
                                   </h1>
                                 </div>
-                              <div className="modal-card-xheal-main-content">
-                                <p className="modal-card-xheal-description">
-                                  A connected rehab system combining wearable sensors, real-time feedback, and clinician dashboards to improve post-surgery recovery.
-                                </p>
-                                <div className="modal-card-xheal-details">
-                                  <div className="modal-card-xheal-section">
-                                    <h3 className="modal-card-xheal-section-title">My Role</h3>
-                                    <p className="modal-card-xheal-section-content">Lead UX Designer & Full-Stack Developer</p>
-                                  </div>
-                                  <div className="modal-card-xheal-section">
-                                    <h3 className="modal-card-xheal-section-title">Highlights</h3>
-                                    <ul className="modal-card-xheal-highlights">
-                                      <li>UX Design</li>
-                                      <li>React + Firebase</li>
-                                      <li>BLE Integration</li>
-                                      <li>IoT System Architecture</li>
-                                      <li>Sponsored by T-Mobile x UW GIX</li>
-                                    </ul>
+                                <div className="modal-card-xheal-main-content">
+                                  <p className="modal-card-xheal-description">
+                                    A connected rehab system combining wearable sensors, real-time feedback, and clinician dashboards to improve post-surgery recovery.
+                                  </p>
+                                  <div className="modal-card-xheal-details">
+                                    <div className="modal-card-xheal-section">
+                                      <h3 className="modal-card-xheal-section-title">My Role</h3>
+                                      <p className="modal-card-xheal-section-content">Lead UX Designer & Full-Stack Developer</p>
+                                    </div>
+                                    <div className="modal-card-xheal-section">
+                                      <h3 className="modal-card-xheal-section-title">Highlights</h3>
+                                      <ul className="modal-card-xheal-highlights">
+                                        <li>UX Design</li>
+                                        <li>React + Firebase</li>
+                                        <li>BLE Integration</li>
+                                        <li>IoT System Architecture</li>
+                                        <li>Sponsored by T-Mobile x UW GIX</li>
+                                      </ul>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+                              <div className="modal-card-xheal-images">
+                                <img
+                                  src="/images/X1.2.png"
+                                  alt="X1.2"
+                                  className="modal-card-xheal-additional-image"
+                                  decoding="async"
+                                />
+                                <img
+                                  src="/images/X1.3.png"
+                                  alt="X1.3"
+                                  className="modal-card-xheal-additional-image"
+                                  decoding="async"
+                                />
+                              </div>
                             </div>
-                            <div className="modal-card-xheal-images">
-                              <img
-                                src="/images/X1.2.png"
-                                alt="X1.2"
-                                className="modal-card-xheal-additional-image"
-                                decoding="async"
-                              />
-                              <img
-                                src="/images/X1.3.png"
-                                alt="X1.3"
-                                className="modal-card-xheal-additional-image"
-                                decoding="async"
-                              />
+                          ) : project.id === 'mushroommate' ? (
+                            <div className="modal-card modal-card-mushroommate">
+                              <div className="modal-card-mushroommate-images">
+                                <img
+                                  src="/images/M2.png"
+                                  alt="M2"
+                                  className="modal-card-mushroommate-image"
+                                  decoding="async"
+                                />
+                                <img
+                                  src="/images/M2.1.png"
+                                  alt="M2.1"
+                                  className="modal-card-mushroommate-image"
+                                  decoding="async"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ) : project.id === 'mushroommate' ? (
-                          <div className="modal-card modal-card-mushroommate">
-                            <div className="modal-card-mushroommate-images">
-                              <img
-                                src="/images/M2.png"
-                                alt="M2"
-                                className="modal-card-mushroommate-image"
-                                decoding="async"
-                              />
-                              <img
-                                src="/images/M2.1.png"
-                                alt="M2.1"
-                                className="modal-card-mushroommate-image"
-                                decoding="async"
-                              />
+                          ) : project.id === 'prelo' ? (
+                            <div className="modal-card modal-card-prelo">
+                              <div className="modal-card-prelo-images">
+                                <img
+                                  src="/images/p1.png"
+                                  alt="Prelo"
+                                  className="modal-card-prelo-image"
+                                  decoding="async"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ) : project.id === 'prelo' ? (
-                          <div className="modal-card modal-card-prelo">
-                            <div className="modal-card-prelo-images">
-                              <img
-                                src="/images/p1.png"
-                                alt="Prelo"
-                                className="modal-card-prelo-image"
-                                decoding="async"
-                              />
+                          ) : (
+                            <div className="modal-card">
+                              <div className="modal-card-header">
+                                <h3 className="modal-card-title">{project.name}</h3>
+                              </div>
+                              <div className="modal-card-body">
+                                <p className="modal-card-description">{project.description}</p>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="modal-card">
-                            <div className="modal-card-header">
-                              <h3 className="modal-card-title">{project.name}</h3>
-                            </div>
-                            <div className="modal-card-body">
-                              <p className="modal-card-description">{project.description}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
       </motion.div>
     </>
   );

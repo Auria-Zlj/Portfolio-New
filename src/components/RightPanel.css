@@ -9,15 +9,18 @@
   background-color: var(--primary-color);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scroll-padding-top: 0;
   scroll-padding-bottom: 0;
   will-change: scroll-position;
   scroll-snap-type: y mandatory;
   z-index: 20;
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent; /* Firefox */
-  -ms-overflow-style: -ms-autohiding-scrollbar; /* IE and Edge */
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  /* Firefox */
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+  /* IE and Edge */
 }
 
 .right-panel * {
@@ -90,15 +93,15 @@
   .scroll-indicator {
     margin-top: 1.5rem;
   }
-  
+
   .scroll-hint-bottom {
     bottom: 3rem;
   }
-  
-  .content-section > h2 {
+
+  .content-section>h2 {
     margin-bottom: clamp(2.5rem, 6vh, 5.5rem);
   }
-  
+
   /* 大屏时整块再往下挪一点 */
   .content-section:first-of-type {
     padding-top: clamp(125px, 15vh, 185px);
@@ -189,7 +192,7 @@
   overflow: hidden;
 }
 
-.content-section > h2 {
+.content-section>h2 {
   width: 78%;
   max-width: 720px;
   margin: 0 auto;
@@ -201,7 +204,7 @@
   min-height: 0;
 }
 
-.content-section > .project-image-container {
+.content-section>.project-image-container {
   width: 78%;
   max-width: 720px;
   margin: 0 auto;
@@ -218,15 +221,17 @@
 }
 
 @media (max-width: 1200px) {
-  .content-section > h2 {
+  .content-section>h2 {
     width: 90%;
     max-width: 620px;
   }
-  .content-section > .project-image-container {
+
+  .content-section>.project-image-container {
     width: 90%;
     max-width: 620px;
     max-height: min(68vh, 520px);
   }
+
   .project-hero-image {
     max-height: min(56vh, 420px);
   }
@@ -440,8 +445,10 @@
   overflow-x: visible;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   will-change: transform, border-radius;
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent; /* Firefox */
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  /* Firefox */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -470,16 +477,14 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    180deg,
-    rgba(253, 129, 26, 0.4) 0%,
-    rgba(253, 129, 26, 0.7) 30%,
-    rgba(253, 129, 26, 0.85) 50%,
-    rgba(253, 129, 26, 0.7) 70%,
-    rgba(253, 129, 26, 0.4) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(253, 129, 26, 0.4) 0%,
+      rgba(253, 129, 26, 0.7) 30%,
+      rgba(253, 129, 26, 0.85) 50%,
+      rgba(253, 129, 26, 0.7) 70%,
+      rgba(253, 129, 26, 0.4) 100%);
   border-radius: 2px;
-  box-shadow: 
+  box-shadow:
     0 0 12px rgba(253, 129, 26, 0.4),
     inset 0 0 8px rgba(255, 255, 255, 0.1);
   will-change: transform;
@@ -494,12 +499,15 @@
   overflow-y: auto;
   overflow-x: visible;
   flex: 1;
-  scrollbar-width: none; /* Firefox - hide scrollbar */
-  -ms-overflow-style: none; /* IE and Edge - hide scrollbar */
+  scrollbar-width: none;
+  /* Firefox - hide scrollbar */
+  -ms-overflow-style: none;
+  /* IE and Edge - hide scrollbar */
 }
 
 .modal-content::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera - hide scrollbar */
+  display: none;
+  /* Chrome, Safari, Opera - hide scrollbar */
   width: 0;
   height: 0;
 }
@@ -847,29 +855,25 @@
 }
 
 .modal-scroll-progress-bar-xheal {
-  background: linear-gradient(
-    180deg,
-    rgba(233, 30, 99, 0.4) 0%,
-    rgba(233, 30, 99, 0.7) 30%,
-    rgba(233, 30, 99, 0.85) 50%,
-    rgba(233, 30, 99, 0.7) 70%,
-    rgba(233, 30, 99, 0.4) 100%
-  ) !important;
-  box-shadow: 
+  background: linear-gradient(180deg,
+      rgba(233, 30, 99, 0.4) 0%,
+      rgba(233, 30, 99, 0.7) 30%,
+      rgba(233, 30, 99, 0.85) 50%,
+      rgba(233, 30, 99, 0.7) 70%,
+      rgba(233, 30, 99, 0.4) 100%) !important;
+  box-shadow:
     0 0 12px rgba(233, 30, 99, 0.4),
     inset 0 0 8px rgba(255, 255, 255, 0.1) !important;
 }
 
 .modal-scroll-progress-xheal:hover .modal-scroll-progress-bar-xheal {
-  background: linear-gradient(
-    180deg,
-    rgba(233, 30, 99, 0.6) 0%,
-    rgba(233, 30, 99, 0.85) 30%,
-    rgba(233, 30, 99, 1) 50%,
-    rgba(233, 30, 99, 0.85) 70%,
-    rgba(233, 30, 99, 0.6) 100%
-  ) !important;
-  box-shadow: 
+  background: linear-gradient(180deg,
+      rgba(233, 30, 99, 0.6) 0%,
+      rgba(233, 30, 99, 0.85) 30%,
+      rgba(233, 30, 99, 1) 50%,
+      rgba(233, 30, 99, 0.85) 70%,
+      rgba(233, 30, 99, 0.6) 100%) !important;
+  box-shadow:
     0 0 16px rgba(233, 30, 99, 0.6),
     inset 0 0 8px rgba(255, 255, 255, 0.15) !important;
 }
@@ -882,29 +886,25 @@
 }
 
 .modal-scroll-progress-bar-mushroommate {
-  background: linear-gradient(
-    180deg,
-    rgba(109, 174, 3, 0.4) 0%,
-    rgba(109, 174, 3, 0.7) 30%,
-    rgba(109, 174, 3, 0.85) 50%,
-    rgba(109, 174, 3, 0.7) 70%,
-    rgba(109, 174, 3, 0.4) 100%
-  ) !important;
-  box-shadow: 
+  background: linear-gradient(180deg,
+      rgba(109, 174, 3, 0.4) 0%,
+      rgba(109, 174, 3, 0.7) 30%,
+      rgba(109, 174, 3, 0.85) 50%,
+      rgba(109, 174, 3, 0.7) 70%,
+      rgba(109, 174, 3, 0.4) 100%) !important;
+  box-shadow:
     0 0 12px rgba(109, 174, 3, 0.4),
     inset 0 0 8px rgba(255, 255, 255, 0.1) !important;
 }
 
 .modal-scroll-progress-mushroommate:hover .modal-scroll-progress-bar-mushroommate {
-  background: linear-gradient(
-    180deg,
-    rgba(109, 174, 3, 0.6) 0%,
-    rgba(109, 174, 3, 0.85) 30%,
-    rgba(109, 174, 3, 1) 50%,
-    rgba(109, 174, 3, 0.85) 70%,
-    rgba(109, 174, 3, 0.6) 100%
-  ) !important;
-  box-shadow: 
+  background: linear-gradient(180deg,
+      rgba(109, 174, 3, 0.6) 0%,
+      rgba(109, 174, 3, 0.85) 30%,
+      rgba(109, 174, 3, 1) 50%,
+      rgba(109, 174, 3, 0.85) 70%,
+      rgba(109, 174, 3, 0.6) 100%) !important;
+  box-shadow:
     0 0 16px rgba(109, 174, 3, 0.6),
     inset 0 0 8px rgba(255, 255, 255, 0.15) !important;
 }

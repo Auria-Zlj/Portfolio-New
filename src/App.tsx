@@ -12,86 +12,38 @@ function App() {
   // Ensure page starts at home page on load/refresh
   useEffect(() => {
     // Scroll to top on mount to show home page
-    window.scrollTo({
-      top: 0,
-      behavior: 'auto'
-    });
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
   }, []);
-  
+
+  // Use IntersectionObserver to toggle showMainContent instead of scroll event
   useEffect(() => {
-    // Prevent horizontal scrolling/swiping
-    const preventHorizontalScroll = (e: TouchEvent | WheelEvent) => {
-      // For touch events
-      if ('touches' in e && e.touches.length > 0) {
-        const touch = e.touches[0];
-        const startX = touch.clientX;
-        
-        const handleTouchMove = (moveEvent: TouchEvent) => {
-          const currentX = moveEvent.touches[0].clientX;
-          const deltaX = Math.abs(currentX - startX);
-          const deltaY = Math.abs(moveEvent.touches[0].clientY - touch.clientY);
-          
-          // If horizontal movement is greater than vertical, prevent it
-          if (deltaX > deltaY) {
-            moveEvent.preventDefault();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // Only show main content when home page is out of view (scrolling down)
+          // We won't hide it automatically to prevent jarring snaps/disappearing content when scrolling up
+          if (!entry.isIntersecting) {
+            setShowMainContent(true);
           }
-        };
-        
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        
-        const handleTouchEnd = () => {
-          document.removeEventListener('touchmove', handleTouchMove);
-          document.removeEventListener('touchend', handleTouchEnd);
-        };
-        
-        document.addEventListener('touchend', handleTouchEnd);
+        });
+      },
+      {
+        root: null,
+        threshold: 0.5, // Trigger when 50% of home page is out of view
       }
-      
-      // For wheel events (mouse wheel horizontal scrolling)
-      if ('deltaX' in e) {
-        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-          e.preventDefault();
-        }
-      }
-    };
+    );
 
-    // Prevent horizontal scroll with wheel (only prevent pure horizontal scrolling)
-    const handleWheel = (e: WheelEvent) => {
-      // Only prevent if it's purely horizontal scrolling (no vertical component)
-      // This won't interfere with vertical scrolling which RightPanel handles
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 3 && Math.abs(e.deltaY) < 10) {
-        e.preventDefault();
-      }
-    };
-
-    // Prevent horizontal scroll with touch
-    const handleTouchStart = (e: TouchEvent) => {
-      preventHorizontalScroll(e);
-    };
-
-    document.addEventListener('wheel', handleWheel, { passive: false });
-    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    const homePage = document.querySelector('.home-page-container');
+    if (homePage) {
+      observer.observe(homePage);
+    }
 
     return () => {
-      document.removeEventListener('wheel', handleWheel);
-      document.removeEventListener('touchstart', handleTouchStart);
+      if (homePage) observer.unobserve(homePage);
     };
-  }, []);
-
-  // Handle scroll to hide home page and show main content
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY || window.pageYOffset;
-      const windowHeight = window.innerHeight;
-      if (scrollY > windowHeight * 0.5) {
-        setShowMainContent(true);
-      } else {
-        setShowMainContent(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // 页面加载时就开始预加载作品集长图，并触发解码，点开弹窗时不再卡顿
@@ -107,13 +59,21 @@ function App() {
       '/images/M2.1.png',
       '/images/p1.png',
     ];
-    portfolioImages.forEach((src) => {
-      const img = new Image();
-      img.onload = () => {
-        img.decode().catch(() => {});
-      };
-      img.src = src;
-    });
+
+    // Use requestIdleCallback if available to not block main thread on load
+    const loadImages = () => {
+      portfolioImages.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+        img.decode().catch(() => { });
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(loadImages);
+    } else {
+      setTimeout(loadImages, 1000);
+    }
   }, []);
 
   return (
@@ -122,7 +82,7 @@ function App() {
       <div className="home-page-container">
         <HomePage />
       </div>
-      
+
       {/* Main Content (Left + Right Panels) */}
       <div className="main-content-container">
         <motion.div
@@ -169,7 +129,7 @@ function App() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.35, delay: 0.65, ease: 'easeOut' }}
                       >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
                         <span className="dog-link-label">LinkedIn</span>
                       </motion.a>
                       <motion.a
@@ -180,7 +140,7 @@ function App() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.35, delay: 0.82, ease: 'easeOut' }}
                       >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
                         <span className="dog-link-label">Resume</span>
                       </motion.a>
                       <motion.a
@@ -191,7 +151,7 @@ function App() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.35, delay: 0.99, ease: 'easeOut' }}
                       >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
                         <span className="dog-link-label">Contact</span>
                       </motion.a>
                     </div>
@@ -201,10 +161,9 @@ function App() {
             )}
           </AnimatePresence>
           <LeftPanel onAvatarClick={() => setIsNavOpen(!isNavOpen)} isNavOpen={isNavOpen} />
-          <RightPanel 
-            isNavOpen={isNavOpen} 
+          <RightPanel
+            isNavOpen={isNavOpen}
             onCloseNav={() => setIsNavOpen(false)}
-            isMainContentVisible={showMainContent}
           />
         </motion.div>
       </div>

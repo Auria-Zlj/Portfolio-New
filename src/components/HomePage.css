@@ -38,18 +38,23 @@
 }
 
 @keyframes liquidFloat {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0) scale(1);
     border-radius: 32px;
   }
+
   25% {
     transform: translateY(-5px) scale(1.01);
     border-radius: 35px 30px 30px 35px;
   }
+
   50% {
     transform: translateY(0) scale(1);
     border-radius: 30px 35px 35px 30px;
   }
+
   75% {
     transform: translateY(5px) scale(1.01);
     border-radius: 35px 30px 30px 35px;
@@ -64,20 +69,21 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.3) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      rgba(255, 255, 255, 0.3) 0%,
+      transparent 70%);
   animation: liquidShine 6s ease-in-out infinite;
   pointer-events: none;
 }
 
 @keyframes liquidShine {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate(-50%, -50%) rotate(0deg);
     opacity: 0.3;
   }
+
   50% {
     transform: translate(-50%, -50%) rotate(180deg);
     opacity: 0.6;
@@ -92,12 +98,10 @@
   right: 0;
   bottom: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.533) 0%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.533) 0%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.05) 100%);
   pointer-events: none;
 }
 
@@ -204,12 +208,12 @@
 }
 
 .home-dog-bubble {
-  transform: translate(16px, -52px);
+  /* transform set in JS */
   white-space: nowrap;
 }
 
 .home-hero-bubble {
-  transform: translate(16px, -64px);
+  /* transform set in JS */
   max-width: 320px;
 }
 
@@ -243,13 +247,27 @@
 }
 
 @keyframes homeTailWag {
-  0%, 100% { transform: rotate(-10deg); }
-  50% { transform: rotate(12deg); }
+
+  0%,
+  100% {
+    transform: rotate(-10deg);
+  }
+
+  50% {
+    transform: rotate(12deg);
+  }
 }
 
 @keyframes homeTailWagFast {
-  0%, 100% { transform: rotate(-18deg); }
-  50% { transform: rotate(22deg); }
+
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+
+  50% {
+    transform: rotate(22deg);
+  }
 }
 
 .home-dog-eye {
@@ -315,11 +333,11 @@
   .home-section {
     padding: 2rem;
   }
-  
+
   .home-content {
     gap: 1.5rem;
   }
-  
+
   .home-scroll-indicator {
     bottom: 1.5rem;
   }
